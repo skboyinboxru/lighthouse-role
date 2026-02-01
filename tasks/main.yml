@@ -1,0 +1,51 @@
+---
+- name: Install Git
+  yum:
+    name: git
+    state: present
+  tags: lighthouse
+
+- name: Clone Lighthouse repository
+  git:
+    repo: "{{ lighthouse_repo }}"
+    dest: "{{ lighthouse_install_dir }}"
+    version: "{{ lighthouse_version }}"
+    force: yes
+  tags: lighthouse
+
+- name: Set permissions for Lighthouse directory
+  file:
+    path: "{{ lighthouse_install_dir }}"
+    owner: "{{ nginx_user_name }}"
+    group: "{{ nginx_user_name }}"
+    mode: '0755'
+    recurse: yes
+  tags: lighthouse
+
+- name: Create Nginx configuration for Lighthouse
+  template:
+    src: lighthouse.conf.j2
+    dest: "{{ nginx_conf_dir }}/{{ lighthouse_config_file }}"
+    owner: "{{ nginx_user_name }}"
+    group: "{{ nginx_user_name }}"
+    mode: '0644'
+  notify: reload nginx
+  tags: lighthouse
+
+- name: Create ClickHouse configuration for Lighthouse
+  template:
+    src: clickhouse.config.js.j2
+    dest: "{{ lighthouse_install_dir }}/clickhouse.config.js"
+    owner: "{{ nginx_user_name }}"
+    group: "{{ nginx_user_name }}"
+    mode: '0644'
+  tags: lighthouse
+
+- name: Configure firewalld for HTTP
+  firewalld:
+    service: http
+    permanent: yes
+    state: enabled
+    immediate: yes
+  when: ansible_os_family == "RedHat"
+  tags: lighthouse

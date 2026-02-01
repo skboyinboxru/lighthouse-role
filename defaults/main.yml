@@ -14,4 +14,4 @@ clickhouse_port: 8123
 
 # Nginx server settings
 lighthouse_server_name: "_"
-lighthouse_server_port: "80
+lighthouse_server_port: "80"

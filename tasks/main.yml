@@ -105,15 +105,21 @@
   tags: nginx
   become: yes
 
-- name: Configure firewall
-  firewalld:
-    service: http
-    permanent: yes
-    state: enabled
-    immediate: yes
+- name: Configure firewall using firewall-cmd
+  shell: |
+    if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active firewalld >/dev/null 2>&1; then
+        firewall-cmd --permanent --add-service=http
+        firewall-cmd --reload
+        echo "Firewall configured for HTTP"
+    else
+        echo "Firewalld not available or not active, skipping"
+    fi
+  args:
+    executable: /bin/bash
   when: ansible_os_family == "RedHat"
   tags: firewall
   become: yes
+  changed_when: false
 
 - name: Verify installation
   shell: |

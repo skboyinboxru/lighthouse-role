@@ -1,11 +1,27 @@
 - name: Install required packages
-  yum:
-    name:
-      - epel-release
-      - nginx
-      - wget
-      - tar
-    state: present
+  block:
+    - name: Install EPEL repository
+      yum:
+        name: epel-release
+        state: present
+      tags: install
+      become: yes
+    
+    - name: Update yum cache
+      yum:
+        update_cache: yes
+      tags: install
+      become: yes
+    
+    - name: Install other packages
+      yum:
+        name:
+          - nginx
+          - wget
+          - tar
+        state: present
+      tags: install
+      become: yes
   tags: install
   become: yes
 

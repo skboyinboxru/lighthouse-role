@@ -1,51 +1,117 @@
----
-- name: Install Git
+- name: Install required packages
   yum:
-    name: git
+    name:
+      - epel-release
+      - nginx
+      - wget
+      - tar
     state: present
-  tags: lighthouse
+  tags: install
+  become: yes
 
-- name: Clone Lighthouse repository
-  git:
-    repo: "{{ lighthouse_repo }}"
+- name: Create directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: nginx
+    group: nginx
+    mode: '0755'
+  loop:
+    - "{{ lighthouse_install_dir }}"
+    - "/var/log/nginx/lighthouse"
+  tags: setup
+  become: yes
+
+- name: Download Lighthouse from GitHub
+  get_url:
+    url: "https://github.com/VKCOM/lighthouse/archive/refs/heads/master.tar.gz"
+    dest: "/tmp/lighthouse.tar.gz"
+    validate_certs: no
+    timeout: 30
+  tags: lighthouse
+  become: yes
+
+- name: Extract Lighthouse
+  unarchive:
+    src: "/tmp/lighthouse.tar.gz"
     dest: "{{ lighthouse_install_dir }}"
-    version: "{{ lighthouse_version }}"
-    force: yes
+    remote_src: yes
+    extra_opts: "--strip-components=1"
+    creates: "{{ lighthouse_install_dir }}/index.html"
   tags: lighthouse
+  become: yes
 
-- name: Set permissions for Lighthouse directory
+- name: Set permissions
   file:
     path: "{{ lighthouse_install_dir }}"
-    owner: "{{ nginx_user_name }}"
-    group: "{{ nginx_user_name }}"
+    owner: nginx
+    group: nginx
     mode: '0755'
     recurse: yes
   tags: lighthouse
+  become: yes
 
-- name: Create Nginx configuration for Lighthouse
+- name: Configure Nginx
   template:
-    src: lighthouse.conf.j2
-    dest: "{{ nginx_conf_dir }}/{{ lighthouse_config_file }}"
-    owner: "{{ nginx_user_name }}"
-    group: "{{ nginx_user_name }}"
+    src: "lighthouse.conf.j2"
+    dest: "/etc/nginx/conf.d/lighthouse.conf"
+    owner: nginx
+    group: nginx
     mode: '0644'
-  notify: reload nginx
-  tags: lighthouse
+  notify: restart nginx
+  tags: nginx
+  become: yes
 
-- name: Create ClickHouse configuration for Lighthouse
-  template:
-    src: clickhouse.config.js.j2
+- name: Configure ClickHouse connection
+  copy:
     dest: "{{ lighthouse_install_dir }}/clickhouse.config.js"
-    owner: "{{ nginx_user_name }}"
-    group: "{{ nginx_user_name }}"
+    content: |
+      // ClickHouse configuration
+      module.exports = {
+        host: '{{ clickhouse_host }}',
+        port: {{ clickhouse_port }},
+        protocol: 'http',
+        user: '{{ clickhouse_user }}',
+        password: '{{ clickhouse_password }}',
+        database: '{{ clickhouse_database }}'
+      }
+    owner: nginx
+    group: nginx
     mode: '0644'
   tags: lighthouse
+  become: yes
 
-- name: Configure firewalld for HTTP
+- name: Start and enable Nginx
+  service:
+    name: nginx
+    state: started
+    enabled: yes
+  tags: nginx
+  become: yes
+
+- name: Configure firewall
   firewalld:
     service: http
     permanent: yes
     state: enabled
     immediate: yes
   when: ansible_os_family == "RedHat"
-  tags: lighthouse
+  tags: firewall
+  become: yes
+
+- name: Verify installation
+  shell: |
+    echo "=== Lighthouse Installation Verification ==="
+    echo "Directory: {{ lighthouse_install_dir }}"
+    ls -la {{ lighthouse_install_dir }} | head -5
+    echo ""
+    echo "Nginx config test:"
+    nginx -t 2>&1 || true
+    echo ""
+    echo "Nginx status:"
+    systemctl is-active nginx
+  args:
+    executable: /bin/bash
+  changed_when: false
+  tags: verify
+  become: yes

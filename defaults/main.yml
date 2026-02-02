@@ -1,17 +1,8 @@
 ---
-lighthouse_repo: "https://github.com/VKCOM/lighthouse.git"
-lighthouse_install_dir: "/var/www/lighthouse"
-lighthouse_version: "master"
-
-# Nginx settings
-nginx_user_name: "nginx"
-nginx_conf_dir: "/etc/nginx/conf.d"
-lighthouse_config_file: "lighthouse.conf"
-
-# ClickHouse connection (will be overridden in playbook)
-clickhouse_host: "localhost"
+# Lighthouse defaults
+lighthouse_install_dir: "/usr/share/nginx/lighthouse"
+clickhouse_host: "clickhouse-vm"
 clickhouse_port: 8123
-
-# Nginx server settings
-lighthouse_server_name: "_"
-lighthouse_server_port: "80"
+clickhouse_user: "default"
+clickhouse_password: ""
+clickhouse_database: "default"
